@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HPO Tree Visualizer</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- Vis.js for network visualization - using local copy -->
+    <script type="text/javascript" src="vis-network.min.js"></script>
+    <style>
+        /* Ensure vis network container has proper sizing */
+        .vis-network {
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-dna"></i> HPO Tree Visualizer</h1>
+            <p>Human Phenotype Ontology Explorer</p>
+        </header>
+
+        <div class="search-section">
+            <div class="search-container">
+                <input 
+                    type="text" 
+                    id="searchInput" 
+                    placeholder="Search for HPO terms (e.g., 'kidney', 'abnormality', 'HP:0000001')..."
+                    autocomplete="off"
+                >
+                <button id="searchBtn" class="search-btn">
+                    <i class="fas fa-search"></i>
+                </button>
+                <button id="clearBtn" class="clear-btn" style="display: none;">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div id="autocompleteList" class="autocomplete-list"></div>
+        </div>
+
+        <div class="main-content">
+            <div class="left-panel">
+                <div class="info-panel">
+                    <h2>Selected Term</h2>
+                    <div id="selectedTermInfo" class="term-info">
+                        <p class="placeholder">Select a term to view details</p>
+                    </div>
+                </div>
+
+                <div class="relations-panel">
+                    <div class="parents-section">
+                        <h3><i class="fas fa-level-up-alt"></i> Parents</h3>
+                        <div id="parentsList" class="relations-list">
+                            <p class="placeholder">No term selected</p>
+                        </div>
+                    </div>
+                    <div class="children-section">
+                        <h3><i class="fas fa-level-down-alt"></i> Children</h3>
+                        <div id="childrenList" class="relations-list">
+                            <p class="placeholder">No term selected</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="visualization-panel">
+                <div class="vis-controls">
+                    <button id="resetViewBtn" class="control-btn">
+                        <i class="fas fa-compress"></i> Reset View
+                    </button>
+                    <button id="expandBtn" class="control-btn">
+                        <i class="fas fa-expand-alt"></i> Expand All
+                    </button>
+                    <div class="depth-control">
+                        <label for="depthSlider">Depth:</label>
+                        <input type="range" id="depthSlider" min="1" max="5" value="2">
+                        <span id="depthValue">2</span>
+                    </div>
+                </div>
+                <div id="networkVisualization"></div>
+                <div class="loading-overlay" id="loadingOverlay">
+                    <div class="spinner"></div>
+                    <p>Loading HPO data...</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="stats-bar">
+            <div class="stat">
+                <i class="fas fa-database"></i>
+                <span id="totalTerms">Loading...</span> total terms
+            </div>
+            <div class="stat">
+                <i class="fas fa-project-diagram"></i>
+                <span id="totalRelations">Loading...</span> relationships
+            </div>
+            <div class="stat">
+                <i class="fas fa-eye"></i>
+                <span id="visibleNodes">0</span> visible nodes
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

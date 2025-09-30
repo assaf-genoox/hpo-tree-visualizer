@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HPO Tree Visualizer</title>
+    <script type="text/javascript" src="https://unpkg.com/vis-network@9.1.6/standalone/umd/vis-network.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 20px;
+            height: calc(100vh - 200px);
+        }
+
+        .sidebar {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            overflow-y: auto;
+        }
+
+        .search-section {
+            margin-bottom: 25px;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e1e5e9;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            background: #f8f9fa;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #667eea;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .search-results {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #e1e5e9;
+            border-radius: 8px;
+            margin-top: 10px;
+            background: white;
+            display: none;
+        }
+
+        .search-result {
+            padding: 12px 16px;
+            cursor: pointer;
+            border-bottom: 1px solid #f0f0f0;
+            transition: background-color 0.2s;
+        }
+
+        .search-result:hover {
+            background-color: #f8f9fa;
+        }
+
+        .search-result:last-child {
+            border-bottom: none;
+        }
+
+        .search-result-title {
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 4px;
+        }
+
+        .search-result-id {
+            font-size: 0.85rem;
+            color: #7f8c8d;
+        }
+
+        .controls {
+            margin-bottom: 25px;
+        }
+
+        .control-group {
+            margin-bottom: 15px;
+        }
+
+        .control-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .depth-slider {
+            width: 100%;
+            margin: 10px 0;
+        }
+
+        .depth-value {
+            text-align: center;
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .info-panel {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            border-left: 4px solid #667eea;
+        }
+
+        .info-title {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #2c3e50;
+            margin-bottom: 15px;
+        }
+
+        .info-section {
+            margin-bottom: 20px;
+        }
+
+        .info-section h4 {
+            color: #34495e;
+            margin-bottom: 8px;
+            font-size: 1rem;
+        }
+
+        .info-text {
+            color: #7f8c8d;
+            line-height: 1.5;
+            margin-bottom: 10px;
+        }
+
+        .info-list {
+            list-style: none;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        .info-list li {
+            padding: 6px 12px;
+            margin: 4px 0;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid #e1e5e9;
+        }
+
+        .info-list li:hover {
+            background: #667eea;
+            color: white;
+            transform: translateX(5px);
+        }
+
+        .visualization-container {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            position: relative;
+            overflow: hidden;
+        }
+
+        #networkVisualization {
+            width: 100%;
+            height: 100%;
+            min-height: 600px;
+            border-radius: 10px;
+            background: #fafafa;
+        }
+
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            display: none;
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .status {
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-weight: 500;
+            display: none;
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .stats {
+            background: #e8f4f8;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .stats-item {
+            display: inline-block;
+            margin: 0 15px;
+        }
+
+        .stats-number {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #2c3e50;
+        }
+
+        .stats-label {
+            font-size: 0.9rem;
+            color: #7f8c8d;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        @media (max-width: 992px) {
+            .main-content {
+                grid-template-columns: 1fr;
+                height: auto;
+            }
+            
+            .sidebar {
+                order: 2;
+            }
+            
+            .visualization-container {
+                order: 1;
+                height: 500px;
+            }
+        }
+
+        .error-message {
+            text-align: center;
+            color: #e74c3c;
+            padding: 40px;
+            font-size: 1.1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧬 HPO Tree Visualizer</h1>
+            <p>Explore the Human Phenotype Ontology with interactive tree visualization</p>
+        </div>
+
+        <div class="main-content">
+            <div class="sidebar">
+                <div class="search-section">
+                    <input type="text" id="searchInput" class="search-input" placeholder="Search HPO terms (e.g., kidney, ataxia)">
+                    <div id="searchResults" class="search-results"></div>
+                </div>
+
+                <div class="controls">
+                    <div class="control-group">
+                        <label class="control-label">Visualization Depth</label>
+                        <input type="range" id="depthSlider" class="depth-slider" min="1" max="5" value="2">
+                        <div id="depthValue" class="depth-value">Depth: 2</div>
+                    </div>
+                </div>
+
+                <div class="stats" id="statsPanel">
+                    <div class="stats-item">
+                        <div class="stats-number" id="totalNodes">-</div>
+                        <div class="stats-label">Terms</div>
+                    </div>
+                    <div class="stats-item">
+                        <div class="stats-number" id="totalEdges">-</div>
+                        <div class="stats-label">Relations</div>
+                    </div>
+                </div>
+
+                <div class="status" id="statusMessage"></div>
+
+                <div class="info-panel" id="infoPanel">
+                    <div class="info-title">Node Information</div>
+                    <div class="info-section">
+                        <h4>Selected Term</h4>
+                        <div id="selectedTerm" class="info-text">Click a node to view details</div>
+                    </div>
+                    <div class="info-section">
+                        <h4>Definition</h4>
+                        <div id="definition" class="info-text">-</div>
+                    </div>
+                    <div class="info-section">
+                        <h4>Synonyms</h4>
+                        <div id="synonyms" class="info-text">-</div>
+                    </div>
+                    <div class="info-section">
+                        <h4>Parent Terms</h4>
+                        <ul id="parentList" class="info-list"></ul>
+                    </div>
+                    <div class="info-section">
+                        <h4>Child Terms</h4>
+                        <ul id="childList" class="info-list"></ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="visualization-container">
+                <div id="networkVisualization"></div>
+                <div class="loading" id="loadingIndicator">
+                    <div class="loading-spinner"></div>
+                    <div>Loading visualization...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="text/javascript">
+        // Configuration
+        const API_BASE_URL = 'http://localhost:8000/api';
+        const ROOT_NODE_ID = 'http://purl.obolibrary.org/obo/HP_0000001';
+        
+        // Global variables
+        let network = null;
+        let visNodes = null;
+        let visEdges = null;
+        let selectedNodeId = null;
+        let currentDepth = 2;
+        let searchTimeout = null;
+        let hpoStats = null;
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeApp();
+        });
+
+        async function initializeApp() {
+            try {
+                // Check if vis.js is loaded
+                if (typeof vis === 'undefined') {
+                    showStatus('Error: vis.js library not loaded', 'error');
+                    return;
+                }
+
+                // Load statistics
+                await loadStats();
+                
+                // Initialize visualization
+                initializeVisualization();
+                
+                // Load root node
+                await selectNode(ROOT_NODE_ID);
+                
+                // Setup event listeners
+                setupEventListeners();
+                
+                showStatus('HPO Tree Visualizer loaded successfully', 'success');
+                
+            } catch (error) {
+                console.error('Error initializing app:', error);
+                showStatus('Error initializing application: ' + error.message, 'error');
+            }
+        }
+
+        async function loadStats() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/stats`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                hpoStats = await response.json();
+                
+                document.getElementById('totalNodes').textContent = hpoStats.total_nodes.toLocaleString();
+                document.getElementById('totalEdges').textContent = hpoStats.total_edges.toLocaleString();
+                
+            } catch (error) {
+                console.error('Error loading stats:', error);
+                showStatus('Error loading statistics', 'error');
+            }
+        }
+
+        function initializeVisualization() {
+            const container = document.getElementById('networkVisualization');
+            
+            // Initialize vis.js datasets
+            visNodes = new vis.DataSet([]);
+            visEdges = new vis.DataSet([]);
+            
+            const data = {
+                nodes: visNodes,
+                edges: visEdges
+            };
+            
+            const options = {
+                nodes: {
+                    shape: 'box',
+                    margin: 10,
+                    widthConstraint: { maximum: 200 },
+                    font: { size: 14, face: 'Arial' },
+                    borderWidth: 2,
+                    shadow: true
+                },
+                edges: {
+                    arrows: { to: { enabled: true, scaleFactor: 0.5 } },
+                    smooth: { type: 'cubicBezier', roundness: 0.4 },
+                    width: 2
+                },
+                layout: {
+                    hierarchical: {
+                        direction: 'DU',  // Down-Up (general to specific)
+                        sortMethod: 'directed',
+                        shakeTowards: 'roots',
+                        levelSeparation: 100,
+                        nodeSpacing: 50
+                    }
+                },
+                physics: {
+                    enabled: true,
+                    hierarchicalRepulsion: {
+                        centralGravity: 0.0,
+                        springLength: 100,
+                        springConstant: 0.01,
+                        nodeDistance: 150,
+                        damping: 0.09
+                    }
+                },
+                interaction: {
+                    hover: true,
+                    selectConnectedEdges: false
+                }
+            };
+            
+            network = new vis.Network(container, data, options);
+            
+            // Event listeners
+            network.on('selectNode', function(params) {
+                if (params.nodes.length > 0) {
+                    const nodeId = params.nodes[0];
+                    selectNode(nodeId);
+                }
+            });
+            
+            network.once('stabilizationIterationsDone', function() {
+                network.fit({ animation: true });
+            });
+        }
+
+        async function selectNode(nodeId) {
+            try {
+                selectedNodeId = nodeId;
+                showLoading(true);
+                
+                // Load node details
+                const nodeResponse = await fetch(`${API_BASE_URL}/node/${encodeURIComponent(nodeId)}`);
+                if (!nodeResponse.ok) {
+                    throw new Error(`HTTP error! status: ${nodeResponse.status}`);
+                }
+                const node = await nodeResponse.json();
+                
+                // Load subgraph for visualization
+                const subgraphResponse = await fetch(`${API_BASE_URL}/subgraph/${encodeURIComponent(nodeId)}?depth=${currentDepth}`);
+                if (!subgraphResponse.ok) {
+                    throw new Error(`HTTP error! status: ${subgraphResponse.status}`);
+                }
+                const subgraph = await subgraphResponse.json();
+                
+                // Update visualization
+                updateVisualization(subgraph);
+                
+                // Update info panel
+                updateInfoPanel(node);
+                
+                showLoading(false);
+                
+            } catch (error) {
+                console.error('Error selecting node:', error);
+                showStatus('Error loading node: ' + error.message, 'error');
+                showLoading(false);
+            }
+        }
+
+        function updateVisualization(subgraph) {
+            // Clear existing data
+            visNodes.clear();
+            visEdges.clear();
+            
+            // Add nodes with color coding
+            subgraph.nodes.forEach(node => {
+                let color = {
+                    background: '#4a90e2', // Default blue
+                    border: '#3a7bc8',
+                    highlight: {
+                        background: '#74b9ff',
+                        border: '#4a90e2'
+                    }
+                };
+                
+                if (node.id === selectedNodeId) {
+                    color = {
+                        background: '#6c5ce7', // Purple for selected
+                        border: '#5f3dc4',
+                        highlight: {
+                            background: '#a29bfe',
+                            border: '#6c5ce7'
+                        }
+                    };
+                }
+                
+                visNodes.add({
+                    id: node.id,
+                    label: formatLabel(node.label),
+                    title: `${node.full_id}\n${node.label}`,
+                    color: color,
+                    font: { color: 'white' }
+                });
+            });
+            
+            // Add edges
+            subgraph.edges.forEach(edge => {
+                visEdges.add({
+                    from: edge.from,
+                    to: edge.to,
+                    arrows: 'to'
+                });
+            });
+            
+            // Fit the network
+            setTimeout(() => {
+                network.fit({ animation: true });
+            }, 100);
+        }
+
+        function updateInfoPanel(node) {
+            document.getElementById('selectedTerm').textContent = `${node.full_id}: ${node.label}`;
+            document.getElementById('definition').textContent = node.definition || 'No definition available';
+            document.getElementById('synonyms').textContent = node.synonyms.length > 0 ? node.synonyms.join(', ') : 'None';
+            
+            // Update parent list
+            const parentList = document.getElementById('parentList');
+            parentList.innerHTML = '';
+            if (node.parents.length > 0) {
+                node.parents.forEach(parentId => {
+                    const li = document.createElement('li');
+                    li.textContent = parentId.replace('http://purl.obolibrary.org/obo/', '');
+                    li.onclick = () => selectNode(parentId);
+                    parentList.appendChild(li);
+                });
+            } else {
+                const li = document.createElement('li');
+                li.textContent = 'No parent terms';
+                li.style.fontStyle = 'italic';
+                li.style.color = '#7f8c8d';
+                parentList.appendChild(li);
+            }
+            
+            // Update child list
+            const childList = document.getElementById('childList');
+            childList.innerHTML = '';
+            if (node.children.length > 0) {
+                node.children.forEach(childId => {
+                    const li = document.createElement('li');
+                    li.textContent = childId.replace('http://purl.obolibrary.org/obo/', '');
+                    li.onclick = () => selectNode(childId);
+                    childList.appendChild(li);
+                });
+            } else {
+                const li = document.createElement('li');
+                li.textContent = 'No child terms';
+                li.style.fontStyle = 'italic';
+                li.style.color = '#7f8c8d';
+                childList.appendChild(li);
+            }
+        }
+
+        function setupEventListeners() {
+            // Search input
+            document.getElementById('searchInput').addEventListener('input', handleSearchInput);
+            
+            // Depth slider
+            document.getElementById('depthSlider').addEventListener('input', handleDepthChange);
+        }
+
+        function handleSearchInput(e) {
+            const query = e.target.value.trim();
+            
+            if (searchTimeout) {
+                clearTimeout(searchTimeout);
+            }
+            
+            if (query.length >= 2) {
+                searchTimeout = setTimeout(() => {
+                    performSearch(query, true);
+                }, 300);
+            } else {
+                hideSearchResults();
+            }
+        }
+
+        async function performSearch(query, showDropdown = false) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/search?q=${encodeURIComponent(query)}&page_size=10`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+                
+                if (showDropdown) {
+                    showSearchResults(data.nodes);
+                } else {
+                    // Handle search result selection
+                    if (data.nodes.length > 0) {
+                        selectNode(data.nodes[0].id);
+                    }
+                }
+                
+            } catch (error) {
+                console.error('Error performing search:', error);
+                showStatus('Error searching: ' + error.message, 'error');
+            }
+        }
+
+        function showSearchResults(results) {
+            const container = document.getElementById('searchResults');
+            container.innerHTML = '';
+            
+            if (results.length === 0) {
+                const div = document.createElement('div');
+                div.className = 'search-result';
+                div.textContent = 'No results found';
+                div.style.fontStyle = 'italic';
+                div.style.color = '#7f8c8d';
+                container.appendChild(div);
+            } else {
+                results.forEach(result => {
+                    const div = document.createElement('div');
+                    div.className = 'search-result';
+                    div.innerHTML = `
+                        <div class="search-result-title">${result.label}</div>
+                        <div class="search-result-id">${result.full_id}</div>
+                    `;
+                    div.onclick = () => {
+                        selectNode(result.id);
+                        hideSearchResults();
+                        document.getElementById('searchInput').value = '';
+                    };
+                    container.appendChild(div);
+                });
+            }
+            
+            container.style.display = 'block';
+        }
+
+        function hideSearchResults() {
+            document.getElementById('searchResults').style.display = 'none';
+        }
+
+        function handleDepthChange(e) {
+            currentDepth = parseInt(e.target.value);
+            document.getElementById('depthValue').textContent = `Depth: ${currentDepth}`;
+            
+            if (selectedNodeId) {
+                selectNode(selectedNodeId);
+            }
+        }
+
+        function formatLabel(label) {
+            // Truncate long labels for better visualization
+            if (label.length > 30) {
+                return label.substring(0, 27) + '...';
+            }
+            return label;
+        }
+
+        function showLoading(show) {
+            document.getElementById('loadingIndicator').style.display = show ? 'block' : 'none';
+        }
+
+        function showStatus(message, type) {
+            const statusElement = document.getElementById('statusMessage');
+            statusElement.textContent = message;
+            statusElement.className = `status ${type}`;
+            statusElement.style.display = 'block';
+            
+            // Auto-hide success messages
+            if (type === 'success') {
+                setTimeout(() => {
+                    statusElement.style.display = 'none';
+                }, 3000);
+            }
+        }
+
+        // Hide search results when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.search-section')) {
+                hideSearchResults();
+            }
+        });
+    </script>
+</body>
+</html>

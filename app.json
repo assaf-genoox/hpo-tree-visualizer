@@ -1,0 +1,26 @@
+{
+  "name": "HPO Tree Visualizer",
+  "description": "Interactive visualization of Human Phenotype Ontology",
+  "repository": "https://github.com/your-username/hpo-visualizer",
+  "logo": "https://hpo.jax.org/assets/images/hpo-logo.png",
+  "keywords": ["hpo", "phenotype", "ontology", "visualization", "medical"],
+  "success_url": "/hpo_frontend.html",
+  "buildpacks": [
+    {
+      "url": "heroku/python"
+    }
+  ],
+  "formation": {
+    "web": {
+      "quantity": 1,
+      "size": "basic"
+    }
+  },
+  "addons": [],
+  "env": {
+    "PYTHONUNBUFFERED": {
+      "description": "Python output buffering",
+      "value": "1"
+    }
+  }
+}

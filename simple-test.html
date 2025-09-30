@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Simple Vis.js Test</title>
+    <script type="text/javascript" src="vis-network.min.js"></script>
+    <style>
+        #mynetwork {
+            width: 600px;
+            height: 400px;
+            border: 1px solid lightgray;
+            margin: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Simple Vis.js Test</h1>
+    <div id="mynetwork"></div>
+    <div id="status"></div>
+    
+    <script>
+        window.addEventListener('load', function() {
+            const statusDiv = document.getElementById('status');
+            
+            if (typeof vis === 'undefined') {
+                statusDiv.innerHTML = '<p style="color: red;">❌ vis.js NOT loaded</p>';
+                return;
+            }
+            
+            statusDiv.innerHTML = '<p style="color: green;">✓ vis.js loaded</p>';
+            
+            // Create simple test network
+            const nodes = new vis.DataSet([
+                {id: 1, label: 'Node 1'},
+                {id: 2, label: 'Node 2'}
+            ]);
+            
+            const edges = new vis.DataSet([
+                {from: 1, to: 2}
+            ]);
+            
+            const container = document.getElementById('mynetwork');
+            const data = {nodes: nodes, edges: edges};
+            const options = {};
+            
+            try {
+                const network = new vis.Network(container, data, options);
+                statusDiv.innerHTML += '<p style="color: green;">✓ Network created successfully</p>';
+            } catch (error) {
+                statusDiv.innerHTML += '<p style="color: red;">❌ Error creating network: ' + error.message + '</p>';
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HPO Tree Visualizer - Working Version</title>
+    <script type="text/javascript" src="vis-network.min.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            color: #4a90e2;
+            margin: 0 0 10px 0;
+        }
+        
+        .search-section {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .search-container {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        #searchInput {
+            flex: 1;
+            padding: 12px;
+            font-size: 16px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            outline: none;
+        }
+        
+        #searchInput:focus {
+            border-color: #4a90e2;
+        }
+        
+        .btn {
+            padding: 12px 20px;
+            font-size: 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: #4a90e2;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #3a7bc8;
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 20px;
+        }
+        
+        .info-panel {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            height: fit-content;
+        }
+        
+        .info-panel h3 {
+            color: #4a90e2;
+            margin-top: 0;
+        }
+        
+        .term-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+        }
+        
+        .relations {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .relation-item {
+            padding: 8px 12px;
+            margin: 5px 0;
+            background: #e9ecef;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .relation-item:hover {
+            background: #dee2e6;
+        }
+        
+        .relation-id {
+            font-size: 12px;
+            color: #6c757d;
+        }
+        
+        .visualization-panel {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .vis-controls {
+            padding: 15px 20px;
+            border-bottom: 1px solid #dee2e6;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        #networkContainer {
+            width: 100%;
+            height: 600px;
+            background: #fafafa;
+        }
+        
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .status.loading {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+        
+        .stats {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-top: 20px;
+            display: flex;
+            justify-content: space-around;
+            text-align: center;
+        }
+        
+        .stat {
+            color: #6c757d;
+        }
+        
+        .stat strong {
+            color: #4a90e2;
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧬 HPO Tree Visualizer</h1>
+            <p>Human Phenotype Ontology Explorer</p>
+        </div>
+        
+        <div class="search-section">
+            <div class="search-container">
+                <input type="text" id="searchInput" placeholder="Search HPO terms (e.g., 'kidney', 'HP:0000001')">
+                <button id="searchBtn" class="btn btn-primary">Search</button>
+                <button id="resetBtn" class="btn btn-secondary">Reset</button>
+            </div>
+        </div>
+        
+        <div class="main-content">
+            <div class="info-panel">
+                <h3>Selected Term</h3>
+                <div id="selectedInfo" class="term-info">
+                    Click on a node to see details
+                </div>
+                
+                <h3>Parents</h3>
+                <div id="parentsList" class="relations">
+                    No term selected
+                </div>
+                
+                <h3>Children</h3>
+                <div id="childrenList" class="relations">
+                    No term selected
+                </div>
+            </div>
+            
+            <div class="visualization-panel">
+                <div class="vis-controls">
+                    <button id="fitBtn" class="btn btn-secondary">Fit View</button>
+                    <button id="expandBtn" class="btn btn-secondary">Expand Selected</button>
+                    <div style="margin-left: auto;">
+                        <label>Depth: </label>
+                        <input type="range" id="depthSlider" min="1" max="4" value="2" style="width: 100px;">
+                        <span id="depthValue">2</span>
+                    </div>
+                </div>
+                <div id="networkContainer"></div>
+            </div>
+        </div>
+        
+        <div class="stats">
+            <div class="stat">
+                <strong id="totalTerms">0</strong><br>
+                Total Terms
+            </div>
+            <div class="stat">
+                <strong id="visibleNodes">0</strong><br>
+                Visible Nodes
+            </div>
+            <div class="stat">
+                <strong id="totalRelations">0</strong><br>
+                Relationships
+            </div>
+        </div>
+        
+        <div id="status" class="status loading">Initializing...</div>
+    </div>
+    
+    <script>
+        // Global variables
+        let hpoData = null;
+        let network = null;
+        let nodes = new Map();
+        let edges = [];
+        let selectedNodeId = null;
+        let currentDepth = 2;
+        
+        // Initialize when page loads
+        window.addEventListener('load', function() {
+            console.log('Page loaded, starting initialization...');
+            checkVisAndInit();
+        });
+        
+        function checkVisAndInit() {
+            if (typeof vis === 'undefined') {
+                showStatus('Error: vis.js library not loaded!', 'error');
+                return;
+            }
+            
+            if (!vis.Network) {
+                showStatus('Error: vis.Network not available!', 'error');
+                return;
+            }
+            
+            showStatus('vis.js loaded successfully!', 'success');
+            setTimeout(initializeApp, 100);
+        }
+        
+        async function initializeApp() {
+            try {
+                showStatus('Loading HPO data...', 'loading');
+                
+                // Load HPO data
+                const response = await fetch('hp.json');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                hpoData = data.graphs[0];
+                
+                showStatus('Processing HPO data...', 'loading');
+                
+                // Process nodes
+                hpoData.nodes.forEach(node => {
+                    nodes.set(node.id, {
+                        id: node.id,
+                        label: node.lbl || 'Unknown',
+                        fullId: node.id.replace('http://purl.obolibrary.org/obo/', ''),
+                        definition: node.meta?.definition?.val || '',
+                        parents: [],
+                        children: []
+                    });
+                });
+                
+                // Process edges
+                edges = hpoData.edges.filter(edge => edge.pred === 'is_a');
+                
+                // Build relationships
+                edges.forEach(edge => {
+                    const child = nodes.get(edge.sub);
+                    const parent = nodes.get(edge.obj);
+                    if (child && parent) {
+                        child.parents.push(edge.obj);
+                        parent.children.push(edge.sub);
+                    }
+                });
+                
+                showStatus('Initializing visualization...', 'loading');
+                
+                // Initialize network
+                initializeNetwork();
+                
+                // Setup event listeners
+                setupEventListeners();
+                
+                showStatus(`Ready! ${nodes.size.toLocaleString()} HPO terms loaded.`, 'success');
+                updateStats();
+                
+            } catch (error) {
+                console.error('Error initializing app:', error);
+                showStatus('Error: ' + error.message, 'error');
+            }
+        }
+        
+        function initializeNetwork() {
+            const container = document.getElementById('networkContainer');
+            
+            // Create initial data with root node
+            const rootId = 'http://purl.obolibrary.org/obo/HP_0000001';
+            const rootNode = nodes.get(rootId);
+            
+            if (!rootNode) {
+                showStatus('Error: Root node not found!', 'error');
+                return;
+            }
+            
+            const visNodes = new vis.DataSet([{
+                id: rootId,
+                label: rootNode.label,
+                title: `${rootNode.fullId}\n${rootNode.label}`,
+                color: {
+                    background: '#4a90e2',
+                    border: '#3a7bc8',
+                    highlight: {
+                        background: '#6c5ce7',
+                        border: '#5f3dc4'
+                    }
+                },
+                font: { color: 'white' }
+            }]);
+            
+            const visEdges = new vis.DataSet([]);
+            
+            const data = {
+                nodes: visNodes,
+                edges: visEdges
+            };
+            
+            const options = {
+                nodes: {
+                    shape: 'box',
+                    margin: 10,
+                    widthConstraint: {
+                        maximum: 200
+                    },
+                    font: {
+                        size: 14,
+                        face: 'Arial'
+                    },
+                    borderWidth: 2,
+                    shadow: true
+                },
+                edges: {
+                    arrows: {
+                        to: {
+                            enabled: true,
+                            scaleFactor: 0.5
+                        }
+                    },
+                    smooth: {
+                        type: 'cubicBezier',
+                        roundness: 0.4
+                    },
+                    width: 2,
+                    color: {
+                        color: '#848484',
+                        highlight: '#4a90e2'
+                    }
+                },
+                layout: {
+                    hierarchical: {
+                        direction: 'DU',
+                        sortMethod: 'directed',
+                        shakeTowards: 'roots',
+                        levelSeparation: 100,
+                        nodeSpacing: 50
+                    }
+                },
+                physics: {
+                    enabled: true,
+                    hierarchicalRepulsion: {
+                        centralGravity: 0.0,
+                        springLength: 100,
+                        springConstant: 0.01,
+                        nodeDistance: 150,
+                        damping: 0.09
+                    }
+                },
+                interaction: {
+                    dragNodes: true,
+                    dragView: true,
+                    zoomView: true,
+                    hover: true
+                }
+            };
+            
+            try {
+                network = new vis.Network(container, data, options);
+                console.log('Network created successfully');
+                
+                // Add event listeners
+                network.on('click', function(params) {
+                    if (params.nodes.length > 0) {
+                        selectNode(params.nodes[0]);
+                    }
+                });
+                
+                // Select root node initially
+                selectNode(rootId);
+                
+            } catch (error) {
+                console.error('Error creating network:', error);
+                showStatus('Error creating visualization: ' + error.message, 'error');
+            }
+        }
+        
+        function selectNode(nodeId) {
+            selectedNodeId = nodeId;
+            const node = nodes.get(nodeId);
+            
+            if (!node) return;
+            
+            // Update visualization
+            updateVisualization(nodeId);
+            
+            // Update info panel
+            updateNodeInfo(node);
+            updateRelationships(node);
+        }
+        
+        function updateVisualization(centerNodeId) {
+            if (!network) return;
+            
+            const subgraph = getSubgraph(centerNodeId, currentDepth);
+            const visNodes = network.body.data.nodes;
+            const visEdges = network.body.data.edges;
+            
+            // Clear existing data
+            visNodes.clear();
+            visEdges.clear();
+            
+            // Add nodes
+            subgraph.nodes.forEach(node => {
+                let color = {
+                    background: '#dfe6e9',
+                    border: '#b2bec3',
+                    highlight: {
+                        background: '#74b9ff',
+                        border: '#4a90e2'
+                    }
+                };
+                
+                if (node.id === centerNodeId) {
+                    color = {
+                        background: '#6c5ce7',
+                        border: '#5f3dc4',
+                        highlight: {
+                            background: '#a29bfe',
+                            border: '#6c5ce7'
+                        }
+                    };
+                } else if (node.isParent) {
+                    color = {
+                        background: '#00b894',
+                        border: '#00896e',
+                        highlight: {
+                            background: '#55efc4',
+                            border: '#00b894'
+                        }
+                    };
+                } else if (node.isChild) {
+                    color = {
+                        background: '#4a90e2',
+                        border: '#3a7bc8',
+                        highlight: {
+                            background: '#74b9ff',
+                            border: '#4a90e2'
+                        }
+                    };
+                }
+                
+                visNodes.add({
+                    id: node.id,
+                    label: formatLabel(node.label),
+                    title: `${node.fullId}\n${node.label}`,
+                    color: color,
+                    font: { color: 'white' }
+                });
+            });
+            
+            // Add edges
+            subgraph.edges.forEach(edge => {
+                visEdges.add({
+                    id: `${edge.from}-${edge.to}`,
+                    from: edge.from,
+                    to: edge.to,
+                    arrows: 'to'
+                });
+            });
+            
+            // Update visible nodes count
+            document.getElementById('visibleNodes').textContent = subgraph.nodes.length;
+            
+            // Fit to view
+            setTimeout(() => {
+                if (network) {
+                    network.fit({
+                        animation: {
+                            duration: 500,
+                            easingFunction: 'easeInOutQuad'
+                        }
+                    });
+                }
+            }, 100);
+        }
+        
+        function getSubgraph(centerNodeId, depth) {
+            const visited = new Set();
+            const resultNodes = [];
+            const resultEdges = [];
+            const centerNode = nodes.get(centerNodeId);
+            
+            if (!centerNode) return { nodes: [], edges: [] };
+            
+            const queue = [{ id: centerNodeId, level: 0, isParent: false, isChild: false }];
+            visited.add(centerNodeId);
+            
+            while (queue.length > 0) {
+                const current = queue.shift();
+                const currentNode = nodes.get(current.id);
+                
+                resultNodes.push({
+                    ...currentNode,
+                    level: current.level,
+                    isParent: current.isParent,
+                    isChild: current.isChild
+                });
+                
+                if (current.level < depth) {
+                    // Add parents
+                    currentNode.parents.forEach(parentId => {
+                        if (!visited.has(parentId)) {
+                            visited.add(parentId);
+                            queue.push({
+                                id: parentId,
+                                level: current.level + 1,
+                                isParent: current.id === centerNodeId,
+                                isChild: false
+                            });
+                        }
+                        resultEdges.push({ from: current.id, to: parentId });
+                    });
+                    
+                    // Add children
+                    currentNode.children.forEach(childId => {
+                        if (!visited.has(childId)) {
+                            visited.add(childId);
+                            queue.push({
+                                id: childId,
+                                level: current.level + 1,
+                                isParent: false,
+                                isChild: current.id === centerNodeId
+                            });
+                        }
+                        resultEdges.push({ from: childId, to: current.id });
+                    });
+                }
+            }
+            
+            return { nodes: resultNodes, edges: resultEdges };
+        }
+        
+        function updateNodeInfo(node) {
+            let html = `
+                <strong>ID:</strong> ${node.fullId}<br>
+                <strong>Label:</strong> ${node.label}<br>
+                <strong>Parents:</strong> ${node.parents.length}<br>
+                <strong>Children:</strong> ${node.children.length}
+            `;
+            
+            if (node.definition) {
+                html += `<br><br><strong>Definition:</strong><br>${node.definition}`;
+            }
+            
+            document.getElementById('selectedInfo').innerHTML = html;
+        }
+        
+        function updateRelationships(node) {
+            // Update parents
+            let parentsHtml = '';
+            if (node.parents.length > 0) {
+                node.parents.forEach(parentId => {
+                    const parent = nodes.get(parentId);
+                    if (parent) {
+                        parentsHtml += `
+                            <div class="relation-item" onclick="selectNode('${parentId}')">
+                                ${parent.label}
+                                <div class="relation-id">${parent.fullId}</div>
+                            </div>
+                        `;
+                    }
+                });
+            } else {
+                parentsHtml = 'No parent terms';
+            }
+            document.getElementById('parentsList').innerHTML = parentsHtml;
+            
+            // Update children
+            let childrenHtml = '';
+            if (node.children.length > 0) {
+                node.children.slice(0, 20).forEach(childId => {
+                    const child = nodes.get(childId);
+                    if (child) {
+                        childrenHtml += `
+                            <div class="relation-item" onclick="selectNode('${childId}')">
+                                ${child.label}
+                                <div class="relation-id">${child.fullId}</div>
+                            </div>
+                        `;
+                    }
+                });
+                if (node.children.length > 20) {
+                    childrenHtml += `<div style="color: #6c757d; font-style: italic;">... and ${node.children.length - 20} more</div>`;
+                }
+            } else {
+                childrenHtml = 'No child terms';
+            }
+            document.getElementById('childrenList').innerHTML = childrenHtml;
+        }
+        
+        function formatLabel(label) {
+            if (label.length > 25) {
+                return label.substring(0, 22) + '...';
+            }
+            return label;
+        }
+        
+        function setupEventListeners() {
+            // Search
+            document.getElementById('searchBtn').addEventListener('click', performSearch);
+            document.getElementById('searchInput').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') performSearch();
+            });
+            
+            // Reset
+            document.getElementById('resetBtn').addEventListener('click', () => {
+                if (selectedNodeId) {
+                    selectNode(selectedNodeId);
+                }
+            });
+            
+            // Controls
+            document.getElementById('fitBtn').addEventListener('click', () => {
+                if (network) network.fit();
+            });
+            
+            document.getElementById('expandBtn').addEventListener('click', () => {
+                if (selectedNodeId) {
+                    currentDepth = Math.min(4, currentDepth + 1);
+                    document.getElementById('depthSlider').value = currentDepth;
+                    document.getElementById('depthValue').textContent = currentDepth;
+                    selectNode(selectedNodeId);
+                }
+            });
+            
+            // Depth slider
+            document.getElementById('depthSlider').addEventListener('input', (e) => {
+                currentDepth = parseInt(e.target.value);
+                document.getElementById('depthValue').textContent = currentDepth;
+                if (selectedNodeId) {
+                    selectNode(selectedNodeId);
+                }
+            });
+        }
+        
+        function performSearch() {
+            const query = document.getElementById('searchInput').value.toLowerCase().trim();
+            if (!query) return;
+            
+            // Find matching nodes
+            let found = null;
+            for (let [id, node] of nodes) {
+                if (node.label.toLowerCase().includes(query) || 
+                    node.fullId.toLowerCase().includes(query)) {
+                    found = node;
+                    break;
+                }
+            }
+            
+            if (found) {
+                selectNode(found.id);
+                document.getElementById('searchInput').value = found.label;
+            } else {
+                alert('No matching HPO term found.');
+            }
+        }
+        
+        function updateStats() {
+            document.getElementById('totalTerms').textContent = nodes.size.toLocaleString();
+            document.getElementById('totalRelations').textContent = edges.length.toLocaleString();
+        }
+        
+        function showStatus(message, type) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type}`;
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+        
+        // Make selectNode globally available for onclick handlers
+        window.selectNode = selectNode;
+    </script>
+</body>
+</html>

@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HPO Tree Visualizer - Simple</title>
+    <script type="text/javascript" src="vis-network.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f0f0f0;
+        }
+        
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        
+        #controls {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        #searchInput {
+            width: 300px;
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        #searchBtn {
+            padding: 10px 20px;
+            font-size: 16px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+        
+        #searchBtn:hover {
+            background: #45a049;
+        }
+        
+        #networkContainer {
+            width: 100%;
+            height: 600px;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        #info {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        #status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        
+        .success {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .loading {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+    </style>
+</head>
+<body>
+    <h1>HPO Tree Visualizer - Simplified Version</h1>
+    
+    <div id="status" class="loading">Loading HPO data...</div>
+    
+    <div id="controls">
+        <input type="text" id="searchInput" placeholder="Search HPO terms (e.g., 'kidney', 'HP:0000001')">
+        <button id="searchBtn">Search</button>
+        <button onclick="resetView()">Reset View</button>
+    </div>
+    
+    <div id="networkContainer"></div>
+    
+    <div id="info">
+        <h3>Selected Term</h3>
+        <div id="selectedInfo">Click on a node to see details</div>
+    </div>
+    
+    <script>
+        let hpoData = null;
+        let network = null;
+        let nodes = new Map();
+        let edges = [];
+        
+        // Check if vis.js is loaded
+        if (typeof vis === 'undefined') {
+            document.getElementById('status').className = 'error';
+            document.getElementById('status').textContent = 'Error: vis.js library not loaded!';
+        } else {
+            document.getElementById('status').className = 'success';
+            document.getElementById('status').textContent = 'vis.js loaded successfully! Loading HPO data...';
+            initializeApp();
+        }
+        
+        async function initializeApp() {
+            try {
+                // Load HPO data
+                const response = await fetch('hp.json');
+                const data = await response.json();
+                hpoData = data.graphs[0];
+                
+                // Process nodes
+                hpoData.nodes.forEach(node => {
+                    nodes.set(node.id, {
+                        id: node.id,
+                        label: node.lbl || 'Unknown',
+                        fullId: node.id.replace('http://purl.obolibrary.org/obo/', ''),
+                        definition: node.meta?.definition?.val || '',
+                        parents: [],
+                        children: []
+                    });
+                });
+                
+                // Process edges
+                edges = hpoData.edges.filter(edge => edge.pred === 'is_a');
+                
+                // Build relationships
+                edges.forEach(edge => {
+                    const child = nodes.get(edge.sub);
+                    const parent = nodes.get(edge.obj);
+                    if (child && parent) {
+                        child.parents.push(edge.obj);
+                        parent.children.push(edge.sub);
+                    }
+                });
+                
+                document.getElementById('status').textContent = `Loaded ${nodes.size} HPO terms. Initializing visualization...`;
+                
+                // Initialize visualization
+                initializeNetwork();
+                
+                // Setup search
+                document.getElementById('searchBtn').addEventListener('click', performSearch);
+                document.getElementById('searchInput').addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') performSearch();
+                });
+                
+                document.getElementById('status').className = 'success';
+                document.getElementById('status').textContent = `Ready! ${nodes.size} HPO terms loaded.`;
+                
+            } catch (error) {
+                document.getElementById('status').className = 'error';
+                document.getElementById('status').textContent = 'Error loading HPO data: ' + error.message;
+                console.error(error);
+            }
+        }
+        
+        function initializeNetwork() {
+            // Create initial visualization with root node
+            const rootId = 'http://purl.obolibrary.org/obo/HP_0000001';
+            const rootNode = nodes.get(rootId);
+            
+            const visNodes = new vis.DataSet([{
+                id: rootId,
+                label: rootNode.label,
+                title: rootNode.fullId
+            }]);
+            
+            const visEdges = new vis.DataSet([]);
+            
+            const container = document.getElementById('networkContainer');
+            const data = {
+                nodes: visNodes,
+                edges: visEdges
+            };
+            
+            const options = {
+                nodes: {
+                    shape: 'box',
+                    font: { size: 14 }
+                },
+                edges: {
+                    arrows: 'to'
+                },
+                layout: {
+                    hierarchical: {
+                        direction: 'UD',
+                        sortMethod: 'directed'
+                    }
+                },
+                physics: {
+                    hierarchicalRepulsion: {
+                        nodeDistance: 120
+                    }
+                }
+            };
+            
+            network = new vis.Network(container, data, options);
+            
+            // Add click handler
+            network.on('click', function(params) {
+                if (params.nodes.length > 0) {
+                    const nodeId = params.nodes[0];
+                    showNodeInfo(nodeId);
+                    expandNode(nodeId);
+                }
+            });
+            
+            // Expand root node initially
+            expandNode(rootId);
+        }
+        
+        function expandNode(nodeId) {
+            const node = nodes.get(nodeId);
+            if (!node) return;
+            
+            const visNodes = network.body.data.nodes;
+            const visEdges = network.body.data.edges;
+            const existingIds = new Set(visNodes.getIds());
+            
+            // Add parents
+            node.parents.forEach(parentId => {
+                if (!existingIds.has(parentId)) {
+                    const parent = nodes.get(parentId);
+                    visNodes.add({
+                        id: parentId,
+                        label: parent.label,
+                        title: parent.fullId,
+                        color: '#90EE90'
+                    });
+                }
+                // Add edge if not exists
+                const edgeId = nodeId + '-' + parentId;
+                if (!visEdges.get(edgeId)) {
+                    visEdges.add({
+                        id: edgeId,
+                        from: nodeId,
+                        to: parentId
+                    });
+                }
+            });
+            
+            // Add children (limit to 10 for performance)
+            node.children.slice(0, 10).forEach(childId => {
+                if (!existingIds.has(childId)) {
+                    const child = nodes.get(childId);
+                    visNodes.add({
+                        id: childId,
+                        label: child.label,
+                        title: child.fullId,
+                        color: '#ADD8E6'
+                    });
+                }
+                // Add edge if not exists
+                const edgeId = childId + '-' + nodeId;
+                if (!visEdges.get(edgeId)) {
+                    visEdges.add({
+                        id: edgeId,
+                        from: childId,
+                        to: nodeId
+                    });
+                }
+            });
+            
+            // Update the selected node color
+            visNodes.update({
+                id: nodeId,
+                color: '#FFB6C1'
+            });
+        }
+        
+        function showNodeInfo(nodeId) {
+            const node = nodes.get(nodeId);
+            if (!node) return;
+            
+            let html = `
+                <strong>ID:</strong> ${node.fullId}<br>
+                <strong>Label:</strong> ${node.label}<br>
+                <strong>Parents:</strong> ${node.parents.length}<br>
+                <strong>Children:</strong> ${node.children.length}
+            `;
+            
+            if (node.definition) {
+                html += `<br><br><strong>Definition:</strong> ${node.definition}`;
+            }
+            
+            document.getElementById('selectedInfo').innerHTML = html;
+        }
+        
+        function performSearch() {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            if (!query) return;
+            
+            // Find matching nodes
+            let found = null;
+            for (let [id, node] of nodes) {
+                if (node.label.toLowerCase().includes(query) || 
+                    node.fullId.toLowerCase().includes(query)) {
+                    found = node;
+                    break;
+                }
+            }
+            
+            if (found) {
+                // Clear existing network
+                network.body.data.nodes.clear();
+                network.body.data.edges.clear();
+                
+                // Add found node
+                network.body.data.nodes.add({
+                    id: found.id,
+                    label: found.label,
+                    title: found.fullId,
+                    color: '#FFB6C1'
+                });
+                
+                // Expand it
+                expandNode(found.id);
+                showNodeInfo(found.id);
+                
+                // Fit to view
+                setTimeout(() => network.fit(), 100);
+            } else {
+                alert('No matching HPO term found.');
+            }
+        }
+        
+        function resetView() {
+            if (network) {
+                network.fit();
+            }
+        }
+    </script>
+</body>
+</html>
