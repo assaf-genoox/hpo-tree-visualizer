@@ -1,5 +1,7 @@
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 import json
 import urllib.parse
@@ -16,6 +18,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Mount static files
+app.mount("/static", StaticFiles(directory="."), name="static")
 
 # Global data storage
 hpo_data = None
@@ -291,10 +296,32 @@ async def get_subgraph(
     
     return SubgraphResponse(nodes=result_nodes, edges=result_edges)
 
+@app.get("/")
+async def root():
+    """Root endpoint - serve frontend"""
+    return FileResponse("hpo_frontend.html")
+
+@app.get("/hpo_frontend.html")
+async def frontend():
+    """Serve the frontend HTML"""
+    return FileResponse("hpo_frontend.html")
+
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
-    return {"status": "healthy", "nodes_loaded": len(nodes)}
+    try:
+        # Check if data is loaded
+        if not nodes or len(nodes) == 0:
+            return {"status": "loading", "message": "HPO data is still loading"}
+        
+        return {
+            "status": "healthy", 
+            "nodes_loaded": len(nodes),
+            "edges_loaded": len(edges),
+            "message": "HPO Tree Visualizer is ready"
+        }
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
 if __name__ == "__main__":
     import uvicorn

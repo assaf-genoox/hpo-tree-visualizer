@@ -7,6 +7,7 @@ This ensures the app starts correctly on Railway
 import os
 import sys
 import subprocess
+import time
 from pathlib import Path
 
 def main():
@@ -25,14 +26,19 @@ def main():
         print("Please ensure the HPO data file is included in your deployment")
         sys.exit(1)
     
-    # Start the FastAPI application
+    print(f"📁 HPO data file found: {Path('hp.json').stat().st_size / (1024*1024):.1f} MB")
+    
+    # Start the FastAPI application with proper configuration
     try:
+        print("🔄 Starting FastAPI server...")
         subprocess.run([
             sys.executable, "-m", "uvicorn", 
             "hpo_backend:app", 
             "--host", host, 
             "--port", port,
-            "--workers", "1"  # Single worker for Railway
+            "--workers", "1",  # Single worker for Railway
+            "--timeout-keep-alive", "30",
+            "--timeout-graceful-shutdown", "30"
         ])
     except KeyboardInterrupt:
         print("\n👋 Shutting down HPO Tree Visualizer...")
